@@ -29,11 +29,16 @@ jobs:
         run: |
           set -euo pipefail
 
+          if ! command -v java >/dev/null 2>&1; then
+            echo "::error::Java executable was not found on PATH."
+            exit 1
+          fi
+
           JAVA_VERSION_OUTPUT="$(java -version 2>&1)"
           printf '%s\n' "${JAVA_VERSION_OUTPUT}"
           echo "JAVA_HOME=${JAVA_HOME:-<unset>}"
 
-          RAW_VERSION="$(printf '%s\n' "${JAVA_VERSION_OUTPUT}" | sed -n 's/.*version "\([^"]*\)".*/\1/p' | head -n 1)"
+          RAW_VERSION="$(printf '%s\n' "${JAVA_VERSION_OUTPUT}" | awk -F'"' '/version "/ {print $2; exit}')"
           if [[ -z "${RAW_VERSION}" ]]; then
             echo "::error::Unable to detect the active Java version from 'java -version'."
             exit 1
@@ -225,6 +230,7 @@ jobs:
 
           gh release create "${RELEASE_TAG}" \
             "${ASSET_PATH}" \
+            --repo "${GITHUB_REPOSITORY}" \
             --target "${GITHUB_SHA}" \
             --title "${RELEASE_TITLE}" \
             --notes-file "${NOTES_FILE}" \
@@ -243,11 +249,11 @@ jobs:
           set -euo pipefail
 
           if [[ "${PUBLISH_OUTCOME}" == "success" ]]; then
-            RELEASE_JSON="$(gh release view "${RELEASE_TAG}" --json url,tagName,name,assets 2>/dev/null || true)"
-            RELEASE_URL="$(printf '%s' "${RELEASE_JSON}" | jq -r '.url // empty')"
-            VERIFIED_TAG="$(printf '%s' "${RELEASE_JSON}" | jq -r '.tagName // empty')"
-            VERIFIED_TITLE="$(printf '%s' "${RELEASE_JSON}" | jq -r '.name // empty')"
-            VERIFIED_ASSET="$(printf '%s' "${RELEASE_JSON}" | jq -r --arg name "${ASSET_NAME}" '.assets[]?.name | select(. == $name)' | head -n 1)"
+            RELEASE_JSON="$(gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --json url,tagName,name,assets 2>/dev/null || true)"
+            RELEASE_URL="$(printf '%s' "${RELEASE_JSON}" | jq -r '.url // empty' 2>/dev/null || true)"
+            VERIFIED_TAG="$(printf '%s' "${RELEASE_JSON}" | jq -r '.tagName // empty' 2>/dev/null || true)"
+            VERIFIED_TITLE="$(printf '%s' "${RELEASE_JSON}" | jq -r '.name // empty' 2>/dev/null || true)"
+            VERIFIED_ASSET="$(printf '%s' "${RELEASE_JSON}" | jq -r --arg name "${ASSET_NAME}" 'first(.assets[]?.name | select(. == $name)) // empty' 2>/dev/null || true)"
 
             if [[ -n "${RELEASE_URL}" && -n "${VERIFIED_ASSET}" ]]; then
               echo "Release tag: ${VERIFIED_TAG}"
