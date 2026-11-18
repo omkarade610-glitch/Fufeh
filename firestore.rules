@@ -1,0 +1,342 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isBootstrappedOwner() {
+      return isSignedIn() &&
+        request.auth.token.email_verified == true &&
+        request.auth.token.email == 'tusharade31@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedOwner() ||
+        (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // 3. Standalone Validation Blueprints (Anti-Update-Gap)
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+        (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 600)) &&
+        data.preferredModel in ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-4-argon'] &&
+        data.preferredLanguage in ['en-US', 'hi-IN', 'mr-IN', 'ja-JP', 'ko-KR'] &&
+        data.totalPrompts is int && data.totalPrompts >= 0 && data.totalPrompts <= 10000000 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidConversation(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+        data.modelUsed is string && data.modelUsed.size() >= 1 && data.modelUsed.size() <= 64 &&
+        data.language is string && data.language.size() >= 2 && data.language.size() <= 16 &&
+        data.lastMessagePreview is string && data.lastMessagePreview.size() <= 400 &&
+        data.messageCount is int && data.messageCount >= 0 && data.messageCount <= 50000 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidChatMessage(data) {
+      return data.role in ['user', 'assistant'] &&
+        data.text is string && data.text.size() >= 1 && data.text.size() <= 24000 &&
+        data.hasSources is bool &&
+        data.sources is list && data.sources.size() <= 8 &&
+        (data.sources.size() == 0 || (data.sources[0] is string && data.sources[0].size() <= 600)) &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    function isValidKnowledgeItem(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 180 &&
+        data.content is string && data.content.size() >= 1 && data.content.size() <= 24000 &&
+        data.folder is string && data.folder.size() >= 1 && data.folder.size() <= 64 &&
+        data.itemType in ['memory', 'document', 'prompt'] &&
+        data.pinned is bool &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidArtworkItem(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+        data.prompt is string && data.prompt.size() >= 1 && data.prompt.size() <= 3000 &&
+        data.universe is string && data.universe.size() >= 1 && data.universe.size() <= 80 &&
+        data.style is string && data.style.size() >= 1 && data.style.size() <= 80 &&
+        data.pencilGrade is string && data.pencilGrade.size() <= 32 &&
+        data.collectionName is string && data.collectionName.size() >= 1 && data.collectionName.size() <= 80 &&
+        data.localFilePath is string && data.localFilePath.size() <= 500 &&
+        data.favorite is bool &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidStudioProject(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 180 &&
+        data.projectType in ['anime_series', 'manga', 'code', 'web_app', 'apk_config', 'storyboard'] &&
+        data.categoryTag is string && data.categoryTag.size() >= 1 && data.categoryTag.size() <= 80 &&
+        data.summary is string && data.summary.size() <= 1200 &&
+        data.contentText is string && data.contentText.size() >= 1 && data.contentText.size() <= 60000 &&
+        data.status in ['draft', 'active', 'completed'] &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidProductivityTask(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 180 &&
+        data.notes is string && data.notes.size() <= 2000 &&
+        data.priority in ['low', 'medium', 'high'] &&
+        data.dueLabel is string && data.dueLabel.size() <= 64 &&
+        data.completed is bool &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidSearchRecord(data) {
+      return data.query is string && data.query.size() >= 1 && data.query.size() <= 300 &&
+        data.summary is string && data.summary.size() <= 2000 &&
+        data.sourceCount is int && data.sourceCount >= 0 && data.sourceCount <= 20 &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    function isValidSystemConfig(data) {
+      return data.maintenanceMode is bool &&
+        data.animeStudioEnabled is bool &&
+        data.webSearchEnabled is bool &&
+        data.codingStudioEnabled is bool &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAdminLog(data) {
+      return data.actorUid is string && data.actorUid.size() >= 1 && data.actorUid.size() <= 128 &&
+        data.actorEmail is string && data.actorEmail.size() <= 200 &&
+        data.action is string && data.action.size() >= 1 && data.action.size() <= 100 &&
+        data.details is string && data.details.size() <= 2000 &&
+        data.severity in ['info', 'warning', 'error'] &&
+        isValidTimestamp(data.createdAt);
+    }
+
+    // 4. Users Collection & Scoped Subcollections
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isOwner(userId) &&
+        isValidId(userId) &&
+        incoming().userId == request.auth.uid &&
+        incoming().keys().hasAll(['userId', 'displayName', 'preferredModel', 'preferredLanguage', 'totalPrompts', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['userId', 'displayName', 'email', 'photoUrl', 'preferredModel', 'preferredLanguage', 'totalPrompts', 'createdAt', 'updatedAt']) &&
+        isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt && (
+          isAdmin() ||
+          (isOwner(userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'photoUrl', 'preferredModel', 'preferredLanguage', 'totalPrompts', 'updatedAt']))
+        );
+
+      allow delete: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+
+      // Conversations
+      match /conversations/{conversationId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(conversationId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(conversationId) &&
+          incoming().keys().hasAll(['title', 'modelUsed', 'language', 'lastMessagePreview', 'messageCount', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['title', 'modelUsed', 'language', 'lastMessagePreview', 'messageCount', 'createdAt', 'updatedAt']) &&
+          isValidConversation(incoming());
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(conversationId) &&
+          isValidConversation(incoming()) &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'modelUsed', 'language', 'lastMessagePreview', 'messageCount', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(conversationId);
+
+        match /messages/{messageId} {
+          allow get: if isOwner(userId) && isValidId(userId) && isValidId(conversationId) && isValidId(messageId);
+          allow list: if isOwner(userId);
+
+          allow create: if isOwner(userId) &&
+            isValidId(userId) &&
+            isValidId(conversationId) &&
+            isValidId(messageId) &&
+            incoming().keys().hasAll(['role', 'text', 'hasSources', 'sources', 'createdAt']) &&
+            incoming().keys().hasOnly(['role', 'text', 'hasSources', 'sources', 'createdAt']) &&
+            isValidChatMessage(incoming());
+
+          allow delete: if isOwner(userId) && isValidId(userId) && isValidId(conversationId) && isValidId(messageId);
+        }
+      }
+
+      // Knowledge & AI Memory Vault
+      match /knowledge/{itemId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(itemId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(itemId) &&
+          incoming().keys().hasAll(['title', 'content', 'folder', 'itemType', 'pinned', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['title', 'content', 'folder', 'itemType', 'pinned', 'createdAt', 'updatedAt']) &&
+          isValidKnowledgeItem(incoming());
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(itemId) &&
+          isValidKnowledgeItem(incoming()) &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'folder', 'itemType', 'pinned', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(itemId);
+      }
+
+      // Anime Sketch & Art Gallery
+      match /artworks/{artworkId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(artworkId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(artworkId) &&
+          incoming().keys().hasAll(['title', 'prompt', 'universe', 'style', 'pencilGrade', 'collectionName', 'localFilePath', 'favorite', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['title', 'prompt', 'universe', 'style', 'pencilGrade', 'collectionName', 'localFilePath', 'favorite', 'createdAt', 'updatedAt']) &&
+          isValidArtworkItem(incoming());
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(artworkId) &&
+          isValidArtworkItem(incoming()) &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'collectionName', 'favorite', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(artworkId);
+      }
+
+      // Studio Projects (Anime Series, Manga, Code, Web App, Storyboard, APK Config)
+      match /projects/{projectId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(projectId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(projectId) &&
+          incoming().keys().hasAll(['title', 'projectType', 'categoryTag', 'summary', 'contentText', 'status', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['title', 'projectType', 'categoryTag', 'summary', 'contentText', 'status', 'createdAt', 'updatedAt']) &&
+          isValidStudioProject(incoming());
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(projectId) &&
+          isValidStudioProject(incoming()) &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'categoryTag', 'summary', 'contentText', 'status', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(projectId);
+      }
+
+      // Personal Productivity Tasks
+      match /tasks/{taskId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(taskId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(taskId) &&
+          incoming().keys().hasAll(['title', 'notes', 'priority', 'dueLabel', 'completed', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['title', 'notes', 'priority', 'dueLabel', 'completed', 'createdAt', 'updatedAt']) &&
+          isValidProductivityTask(incoming());
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(taskId) &&
+          isValidProductivityTask(incoming()) &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'notes', 'priority', 'dueLabel', 'completed', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(taskId);
+      }
+
+      // Live Web Search History
+      match /search_history/{searchId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(searchId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(searchId) &&
+          incoming().keys().hasAll(['query', 'summary', 'sourceCount', 'createdAt']) &&
+          incoming().keys().hasOnly(['query', 'summary', 'sourceCount', 'createdAt']) &&
+          isValidSearchRecord(incoming());
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(searchId);
+      }
+    }
+
+    // 5. Server-Side Admin Role Registry
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && isValidId(adminUid) && (request.auth.uid == adminUid || isAdmin());
+      allow list: if isAdmin();
+      allow create, update, delete: if isBootstrappedOwner() && isValidId(adminUid);
+    }
+
+    // 6. Owner-Controlled App Config & Feature Flags
+    match /app_config/{configId} {
+      allow get: if isSignedIn() && isValidId(configId);
+      allow create, update: if isAdmin() &&
+        isValidId(configId) &&
+        incoming().updatedBy == request.auth.uid &&
+        incoming().keys().hasAll(['maintenanceMode', 'animeStudioEnabled', 'webSearchEnabled', 'codingStudioEnabled', 'updatedBy', 'updatedAt']) &&
+        incoming().keys().hasOnly(['maintenanceMode', 'animeStudioEnabled', 'webSearchEnabled', 'codingStudioEnabled', 'updatedBy', 'updatedAt']) &&
+        isValidSystemConfig(incoming());
+    }
+
+    // 7. Admin Activity & Error Telemetry Logs
+    match /admin_logs/{logId} {
+      allow get: if isAdmin() && isValidId(logId);
+      allow list: if isAdmin();
+      allow create: if isSignedIn() &&
+        isValidId(logId) &&
+        incoming().actorUid == request.auth.uid &&
+        incoming().keys().hasAll(['actorUid', 'actorEmail', 'action', 'details', 'severity', 'createdAt']) &&
+        incoming().keys().hasOnly(['actorUid', 'actorEmail', 'action', 'details', 'severity', 'createdAt']) &&
+        isValidAdminLog(incoming());
+      allow delete: if isAdmin() && isValidId(logId);
+    }
+  }
+}

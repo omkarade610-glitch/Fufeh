@@ -1,0 +1,221 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated Jarvis AI user profile and preferences.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "email": { "type": "string", "description": "User email address" },
+        "photoUrl": { "type": "string", "description": "Optional avatar URL" },
+        "preferredModel": {
+          "type": "string",
+          "enum": ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-4-argon"],
+          "description": "Selected Gemini model"
+        },
+        "preferredLanguage": {
+          "type": "string",
+          "enum": ["en-US", "hi-IN", "mr-IN", "ja-JP", "ko-KR"],
+          "description": "Preferred AI and voice language"
+        },
+        "totalPrompts": { "type": "integer", "description": "Count of prompts sent" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update" }
+      },
+      "required": ["userId", "displayName", "preferredModel", "preferredLanguage", "totalPrompts", "createdAt", "updatedAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "AI chat conversation metadata.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Conversation title" },
+        "modelUsed": { "type": "string", "description": "Gemini model used" },
+        "language": { "type": "string", "description": "Language tag" },
+        "lastMessagePreview": { "type": "string", "description": "Latest message preview" },
+        "messageCount": { "type": "integer", "description": "Number of messages" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["title", "modelUsed", "language", "lastMessagePreview", "messageCount", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Individual message inside a conversation.",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["user", "assistant"], "description": "Message author role" },
+        "text": { "type": "string", "description": "Message body" },
+        "hasSources": { "type": "boolean", "description": "Whether grounded web sources are attached" },
+        "sources": { "type": "array", "description": "Up to 8 source strings formatted as title|url" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["role", "text", "hasSources", "sources", "createdAt"]
+    },
+    "KnowledgeItem": {
+      "title": "KnowledgeItem",
+      "description": "User-approved AI memory, document analysis, or saved prompt.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Knowledge item title" },
+        "content": { "type": "string", "description": "Saved knowledge content" },
+        "folder": { "type": "string", "description": "Folder or category name" },
+        "itemType": { "type": "string", "enum": ["memory", "document", "prompt"], "description": "Knowledge type" },
+        "pinned": { "type": "boolean", "description": "Whether pinned to active AI memory" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["title", "content", "folder", "itemType", "pinned", "createdAt", "updatedAt"]
+    },
+    "ArtworkItem": {
+      "title": "ArtworkItem",
+      "description": "Generated Japanese anime sketch, manga art, or AI image metadata.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Artwork title" },
+        "prompt": { "type": "string", "description": "Prompt used to generate artwork" },
+        "universe": { "type": "string", "description": "Anime universe or art category" },
+        "style": { "type": "string", "description": "Drawing or rendering style" },
+        "pencilGrade": { "type": "string", "description": "Graphite grade such as HB, 2B, 4B, 6B, 8B" },
+        "collectionName": { "type": "string", "description": "Gallery collection name" },
+        "localFilePath": { "type": "string", "description": "Local internal image path on device" },
+        "favorite": { "type": "boolean", "description": "Favorite flag" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["title", "prompt", "universe", "style", "pencilGrade", "collectionName", "localFilePath", "favorite", "createdAt", "updatedAt"]
+    },
+    "StudioProject": {
+      "title": "StudioProject",
+      "description": "Anime series bible, manga script, code project, web app, storyboard, or APK config.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Project title" },
+        "projectType": {
+          "type": "string",
+          "enum": ["anime_series", "manga", "code", "web_app", "apk_config", "storyboard"],
+          "description": "Type of studio project"
+        },
+        "categoryTag": { "type": "string", "description": "Language or anime genre" },
+        "summary": { "type": "string", "description": "Short project summary" },
+        "contentText": { "type": "string", "description": "Full script, code, or configuration content" },
+        "status": { "type": "string", "enum": ["draft", "active", "completed"], "description": "Project status" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["title", "projectType", "categoryTag", "summary", "contentText", "status", "createdAt", "updatedAt"]
+    },
+    "ProductivityTask": {
+      "title": "ProductivityTask",
+      "description": "Personal task or reminder item.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Task title" },
+        "notes": { "type": "string", "description": "Task notes" },
+        "priority": { "type": "string", "enum": ["low", "medium", "high"], "description": "Priority level" },
+        "dueLabel": { "type": "string", "description": "Human-readable due time or date label" },
+        "completed": { "type": "boolean", "description": "Completion flag" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["title", "notes", "priority", "dueLabel", "completed", "createdAt", "updatedAt"]
+    },
+    "SearchRecord": {
+      "title": "SearchRecord",
+      "description": "Live web search query history entry.",
+      "type": "object",
+      "properties": {
+        "query": { "type": "string", "description": "Search query" },
+        "summary": { "type": "string", "description": "Synthesized answer snippet" },
+        "sourceCount": { "type": "integer", "description": "Number of real web sources returned" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["query", "summary", "sourceCount", "createdAt"]
+    },
+    "SystemConfig": {
+      "title": "SystemConfig",
+      "description": "Owner-controlled feature flags and maintenance mode.",
+      "type": "object",
+      "properties": {
+        "maintenanceMode": { "type": "boolean", "description": "Whether maintenance banner is active" },
+        "animeStudioEnabled": { "type": "boolean", "description": "Toggle Anime Studio" },
+        "webSearchEnabled": { "type": "boolean", "description": "Toggle Live Web Search" },
+        "codingStudioEnabled": { "type": "boolean", "description": "Toggle Coding Studio" },
+        "updatedBy": { "type": "string", "description": "Admin UID who last updated config" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["maintenanceMode", "animeStudioEnabled", "webSearchEnabled", "codingStudioEnabled", "updatedBy", "updatedAt"]
+    },
+    "AdminLog": {
+      "title": "AdminLog",
+      "description": "Owner dashboard activity and client error log.",
+      "type": "object",
+      "properties": {
+        "actorUid": { "type": "string", "description": "User UID who triggered the log" },
+        "actorEmail": { "type": "string", "description": "Email of actor" },
+        "action": { "type": "string", "description": "Short action identifier" },
+        "details": { "type": "string", "description": "Detailed log description" },
+        "severity": { "type": "string", "enum": ["info", "warning", "error"], "description": "Log severity" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["actorUid", "actorEmail", "action", "details", "severity", "createdAt"]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Server-side admin registry marker.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "description": "Admin email" },
+        "grantedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["email", "grantedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Per-user profile and preference document."
+    },
+    "/users/{userId}/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "User's AI chat conversations."
+    },
+    "/users/{userId}/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Messages belonging to a user's conversation."
+    },
+    "/users/{userId}/knowledge/{itemId}": {
+      "schema": { "$ref": "#/entities/KnowledgeItem" },
+      "description": "User's AI memory, document summaries, and saved prompts."
+    },
+    "/users/{userId}/artworks/{artworkId}": {
+      "schema": { "$ref": "#/entities/ArtworkItem" },
+      "description": "User's Anime Sketch & Image Gallery metadata."
+    },
+    "/users/{userId}/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/StudioProject" },
+      "description": "User's saved anime series, manga, code, web app, storyboard, and APK config projects."
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/ProductivityTask" },
+      "description": "User's personal productivity tasks and reminders."
+    },
+    "/users/{userId}/search_history/{searchId}": {
+      "schema": { "$ref": "#/entities/SearchRecord" },
+      "description": "User's live web search history."
+    },
+    "/app_config/{configId}": {
+      "schema": { "$ref": "#/entities/SystemConfig" },
+      "description": "Owner-managed application feature flags and maintenance mode."
+    },
+    "/admin_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AdminLog" },
+      "description": "Audit and error logs readable by verified owners."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminRole" },
+      "description": "Server-side verified admin role registry."
+    }
+  }
+}

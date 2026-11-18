@@ -1,0 +1,6 @@
+{
+  "name": "Jarvis AI",
+  "description": "Futuristic personal AI assistant, Japanese anime sketch & manga studio, coding assistant, document & knowledge center, and productivity command hub powered by Gemini AI and Firebase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
